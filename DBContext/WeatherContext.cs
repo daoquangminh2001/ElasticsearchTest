@@ -11,7 +11,7 @@ namespace ElasticsearchTest.DBContext
         private readonly IConfiguration _configuration;
         private readonly string _connection;
 
-        public WeatherContext(IConfiguration configuration, string connection)
+        public WeatherContext(IConfiguration configuration)
         {
             _configuration = configuration;
             _connection = _configuration.GetConnectionString("SqlConnection");
