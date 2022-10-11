@@ -18,6 +18,7 @@ namespace ElasticsearchTest.Services
 
         public CreateUserInput Create_Use(CreateUserInput input)
         {
+            //hehe
             var user = new Users();
             return null;
         }
