@@ -23,7 +23,7 @@ namespace ElasticsearchTest.Services
         public CreateUserInput Create_Use(CreateUserInput input)
         {
             string sqlQuery =
-                $"INSERT INTO USERS VALUES (@User_ID,@User_Name,@age,@gender,@Password,@PasswordHash,@PasswordSalt,@Email)";
+                $"INSERT INTO USERS VALUES (@User_ID,@User_Name,@gender,@age,@Role,@Password,@PasswordHash,@PasswordSalt,@City_ID)";
             
             using (var connect = _context.CreateConnection())
             {
@@ -34,20 +34,18 @@ namespace ElasticsearchTest.Services
                 user.Password = input.Password;
                 user.PasswordHash = passHash;
                 user.PasswordSalt = passSalt;
-                user.Email = input.Email;
                 if (connect.State == ConnectionState.Closed) connect.Open();
                  connect.Execute(sqlQuery, new
                 {
-                     user.User_ID,
+                    user.User_ID,
                     input.User_Name,
-                    input.age,
                     input.gender,
+                    input.age,
+                    input.role,
                     input.Password,
                     user.PasswordHash,
                     user.PasswordSalt,
-                    passSalt,
-                    input.Email,
-                    input.role
+                    user.City_ID
                 });
             }
             return input;
