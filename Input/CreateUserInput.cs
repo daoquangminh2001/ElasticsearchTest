@@ -7,5 +7,6 @@
         public int age { get; set; }
         public string Password { get; set; }
         public bool role { get; set; }
+        public string? City_ID { get; set; }
     }
 }

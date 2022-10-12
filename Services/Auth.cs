@@ -1,12 +1,17 @@
-﻿using System.Data;
+﻿using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
 using Dapper;
 using ElasticsearchTest.DBContext;
 using ElasticsearchTest.Input;
 using ElasticsearchTest.Models;
 using Microsoft.Extensions.Configuration;
-
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System;
+using System.Security.Cryptography;
 namespace ElasticsearchTest.Services
 {
     public class Auth:IAuth
@@ -20,10 +25,24 @@ namespace ElasticsearchTest.Services
             _configuration = configuration;
         }
 
+        public dynamic GetUsers()
+        {
+            string Query = "Select * from dbo.Users";
+            var result = new List<dynamic>();
+            using (var connect = _context.CreateConnection())
+            {
+                if (connect.State == ConnectionState.Closed) connect.Open();
+                var temp = connect.Query(Query);
+                result = temp.ToList();
+            }
+
+            return result;
+        }
+
         public CreateUserInput Create_Use(CreateUserInput input)
         {
             string sqlQuery =
-                $"INSERT INTO USERS VALUES (@User_ID,@User_Name,@gender,@age,@Role,@Password,@PasswordHash,@PasswordSalt,@City_ID)";
+                $"INSERT INTO dbo.USERS VALUES (@User_ID,@User_Name,@gender,@age,@Role,@Password,@PasswordHash,@PasswordSalt,@City_ID)";
             
             using (var connect = _context.CreateConnection())
             {
@@ -34,6 +53,7 @@ namespace ElasticsearchTest.Services
                 user.Password = input.Password;
                 user.PasswordHash = passHash;
                 user.PasswordSalt = passSalt;
+                user.City_ID = null;
                 if (connect.State == ConnectionState.Closed) connect.Open();
                  connect.Execute(sqlQuery, new
                 {
@@ -45,13 +65,26 @@ namespace ElasticsearchTest.Services
                     input.Password,
                     user.PasswordHash,
                     user.PasswordSalt,
-                    user.City_ID
+                    input.City_ID
                 });
             }
             return input;
         }
         public LoginInput Login(LoginInput input)
         {
+            using (var connect = _context.CreateConnection())
+            {
+                if (connect.State == ConnectionState.Closed) connect.Open();
+                var result = new DynamicParameters();
+                result.Add("@User_Name",input.User_Name);
+                result.Add("@Password",input.Password);
+                var temp = connect.Query("Check_User", result, commandType: CommandType.StoredProcedure);
+                /*if (temp == 0)
+                {
+                    
+                }*/
+            }
+
             return null;
         }
         private void CreatePassHash(string password, out byte[] passHash, out byte[] passSalt)
@@ -61,6 +94,30 @@ namespace ElasticsearchTest.Services
                 passSalt = hmac.Key;
                 passHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
             }
+        }
+        private bool VerifiPassword(string p, byte[] salt, byte[] hash)
+        {
+            using (var temp = new HMACSHA512(salt))
+            {
+                var check = temp.ComputeHash(System.Text.Encoding.UTF8.GetBytes(p));
+                return check.SequenceEqual(hash);
+            }
+        }
+        private string CreateToken(Users user)
+        {
+            List<Claim> claims = new List<Claim>()
+            {
+                new Claim(ClaimTypes.Name, user.User_Name),
+                new Claim(ClaimTypes.Role, user.role==true?"admin":"user"),
+            };
+            var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_configuration.GetSection("AppSettings:SecretKey").Value));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+            var token = new JwtSecurityToken(
+                claims: claims,
+                expires: DateTime.UtcNow.AddSeconds(10),
+                signingCredentials: creds);
+            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+            return jwt;
         }
     }
 }

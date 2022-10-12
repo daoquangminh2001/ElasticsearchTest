@@ -6,6 +6,7 @@ namespace ElasticsearchTest.Services
 {
     public interface IAuth
     {
+        public dynamic GetUsers();
         public CreateUserInput Create_Use(CreateUserInput input);
         public LoginInput Login(LoginInput input);
     }
