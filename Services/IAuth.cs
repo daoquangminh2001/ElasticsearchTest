@@ -8,6 +8,6 @@ namespace ElasticsearchTest.Services
     {
         public dynamic GetUsers();
         public CreateUserInput Create_Use(CreateUserInput input);
-        public LoginInput Login(LoginInput input);
+        public string Login(LoginInput input);
     }
 }

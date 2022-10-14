@@ -45,5 +45,19 @@ namespace ElasticsearchTest.Controllers
                 return BadRequest(e.Message);
             }
         }
+
+        [HttpPost("Login")]
+        public async Task<IActionResult> LoginByUSer(LoginInput input)
+        {
+            try
+            {
+                string result = _auth.Login(input);
+                return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
+        }
     }
 }

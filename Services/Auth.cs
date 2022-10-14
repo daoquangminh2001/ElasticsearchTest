@@ -11,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System;
-using System.Security.Cryptography;
+
 namespace ElasticsearchTest.Services
 {
     public class Auth:IAuth
@@ -28,11 +28,11 @@ namespace ElasticsearchTest.Services
         public dynamic GetUsers()
         {
             string Query = "Select * from dbo.Users";
-            var result = new List<dynamic>();
+            var result = new List<Users>();
             using (var connect = _context.CreateConnection())
             {
                 if (connect.State == ConnectionState.Closed) connect.Open();
-                var temp = connect.Query(Query);
+                var temp = connect.Query<Users>(Query);
                 result = temp.ToList();
             }
 
@@ -70,22 +70,30 @@ namespace ElasticsearchTest.Services
             }
             return input;
         }
-        public LoginInput Login(LoginInput input)
+        public string Login(LoginInput input)
         {
+            string Token = null;
+            bool check = false;
+            var user = new Users();
             using (var connect = _context.CreateConnection())
             {
                 if (connect.State == ConnectionState.Closed) connect.Open();
                 var result = new DynamicParameters();
                 result.Add("@User_Name",input.User_Name);
                 result.Add("@Password",input.Password);
-                var temp = connect.Query("Check_User", result, commandType: CommandType.StoredProcedure);
-                /*if (temp == 0)
-                {
-                    
-                }*/
-            }
+                var value = connect.Query<Users>("dbo.Check_User", result, commandType: CommandType.StoredProcedure);
+                value.ToList();
 
-            return null;
+                foreach (var a in value)
+                {
+                    user = a;
+                }
+
+                if (VerifiPassword(input.Password, user.PasswordSalt, user.PasswordHash)) Token = CreateToken(user);
+                else return "Sai mật khẩu, ngu";
+            }
+            
+            return Token;
         }
         private void CreatePassHash(string password, out byte[] passHash, out byte[] passSalt)
         {
