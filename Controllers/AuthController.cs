@@ -51,8 +51,7 @@ namespace ElasticsearchTest.Controllers
         {
             try
             {
-                string result = _auth.Login(input);
-                return Ok(result);
+                return Ok(_auth.Login(input));
             }
             catch (Exception e)
             {

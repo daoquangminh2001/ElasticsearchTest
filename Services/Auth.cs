@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System;
+using System.Data.SqlClient;
 
 namespace ElasticsearchTest.Services
 {
@@ -54,6 +55,7 @@ namespace ElasticsearchTest.Services
                 user.PasswordHash = passHash;
                 user.PasswordSalt = passSalt;
                 user.City_ID = null;
+                user.role = false;
                 if (connect.State == ConnectionState.Closed) connect.Open();
                  connect.Execute(sqlQuery, new
                 {
@@ -72,28 +74,25 @@ namespace ElasticsearchTest.Services
         }
         public string Login(LoginInput input)
         {
-            string Token = null;
-            bool check = false;
-            var user = new Users();
-            using (var connect = _context.CreateConnection())
+            using (var connect = new SqlConnection(_configuration.GetSection("ConnectionStrings:SqlConnection").Value))
             {
                 if (connect.State == ConnectionState.Closed) connect.Open();
                 var result = new DynamicParameters();
                 result.Add("@User_Name",input.User_Name);
                 result.Add("@Password",input.Password);
-                var value = connect.Query<Users>("dbo.Check_User", result, commandType: CommandType.StoredProcedure);
-                value.ToList();
-
+                var value = connect.Query<Users>("Check_User", result, commandType: CommandType.StoredProcedure);
+                    // trong store thì lấy ra được Username nhưng khi gọi thì lại bị null ?
                 foreach (var a in value)
                 {
-                    user = a;
+                    var user = a;
+                    user.User_Name = input.User_Name;
+                    if (!VerifiPassword(input.Password, a.PasswordSalt, a.PasswordHash)) return "Sai mật khẩu, ngu";
+                return CreateToken(user);
                 }
-
-                if (VerifiPassword(input.Password, user.PasswordSalt, user.PasswordHash)) Token = CreateToken(user);
-                else return "Sai mật khẩu, ngu";
+                
             }
-            
-            return Token;
+
+            return "Ngu";
         }
         private void CreatePassHash(string password, out byte[] passHash, out byte[] passSalt)
         {
@@ -112,13 +111,14 @@ namespace ElasticsearchTest.Services
             }
         }
         private string CreateToken(Users user)
-        {
-            List<Claim> claims = new List<Claim>()
+            {
+            var claims = new List<Claim>()
             {
                 new Claim(ClaimTypes.Name, user.User_Name),
                 new Claim(ClaimTypes.Role, user.role==true?"admin":"user"),
             };
             var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_configuration.GetSection("AppSettings:SecretKey").Value));
+            Console.WriteLine(key);
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
             var token = new JwtSecurityToken(
                 claims: claims,
